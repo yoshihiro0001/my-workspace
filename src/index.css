@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * デザイン引き継ぎ②: ダーク＆グラスモーフィズム
+ * Tailwind と併用。迷ったら docs/DESIGN_HANDOVER.md を参照。
+ */
+@layer components {
+  .glass {
+    @apply border border-white/10 bg-white/5 backdrop-blur-xl;
+  }
+
+  .glass-card {
+    @apply glass rounded-2xl p-4 shadow-lg transition-colors duration-200;
+  }
+
+  .glass-panel {
+    @apply glass rounded-3xl p-6;
+  }
+
+  .glass-hover {
+    @apply hover:bg-white/10;
+  }
+}
