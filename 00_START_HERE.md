@@ -3,7 +3,7 @@
 ## このリポジトリ（my-workspace）
 
 - **プロダクト仕様の正本**: **`docs/開発依頼書.md`**（AI搭載開発ワークスペース）
-- **実装を始めるとき**: **`docs/DEVELOPMENT_KICKOFF.md`**（オーナーが一言書いてから送るプロンプト付き）
+- **実装を始めるとき**: **`docs/DEVELOPMENT_KICKOFF.md`**（AI に渡す最初の指示文・コピペ用）
 - **見た目の憲法**: `docs/DESIGN_HANDOVER.md`
 - **判断・履歴・運用**: `docs/00_constitution.md` / `docs/01_history.md` / `docs/02_operations.md`
 
@@ -14,7 +14,7 @@
 ## テンプレートを複製した直後にやること
 
 1. **`docs/FIRST_AGENT_PROMPT.md`** を開き、枠内をコピーして **GitHub リポジトリ名 1 行だけ**書き換え、AI に送る（`npm run bootstrap:derive` で残りは自動導出）。
-2. **仕様どおり開発を進めるとき**は **`docs/DEVELOPMENT_KICKOFF.md`** の手順で、オーナーの意図を添えて AI に送る。
+2. **仕様どおり開発を始めるとき**は **`docs/DEVELOPMENT_KICKOFF.md`** の「コピー用」枠をそのまま AI に送る。
 3. 日常の開発依頼の末尾には **`docs/ONE_LINER.md` の一言**を付ける。
 
 ## まだローカルに clone していない場合
@@ -37,7 +37,7 @@
 | やりたいこと | 手順 |
 |--------------|------|
 | 初回の名前・デプロイ設定まとめて | `docs/FIRST_AGENT_PROMPT.md` を AI に送る |
-| **仕様どおり開発を始める** | **`docs/DEVELOPMENT_KICKOFF.md`** で自分の意図を書いてからコピペ送信 |
+| **仕様どおり開発を始める** | **`docs/DEVELOPMENT_KICKOFF.md`** の指示文をコピーして AI に送る |
 | パソコンで画面を見る | `npm install` → `npm run dev` |
 | 本番に載せる | `deploy.config.sh` を用意して `bash deploy.sh`（手順は `docs/02_operations.md`） |
 | 機能を頼む | 依頼文の最後に **`docs/ONE_LINER.md` の一言**を付ける |
@@ -51,5 +51,5 @@
 
 1. ローカルに clone して Cursor でフォルダを開く
 2. **`docs/FIRST_AGENT_PROMPT.md`** で AI に初期セットアップを依頼（未実施なら）
-3. **`docs/DEVELOPMENT_KICKOFF.md`** で開発を開始
+3. **`docs/DEVELOPMENT_KICKOFF.md`** の指示文をコピーして開発を開始
 4. 以降は **`docs/ONE_LINER.md` を毎回**つけて開発依頼

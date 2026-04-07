@@ -12,7 +12,7 @@
 
 初回セットアップは **`docs/FIRST_AGENT_PROMPT.md`** の手順どおり。**リポジトリ名以外の値は `npm run bootstrap:derive -- <repo名>` の出力に従う**（ポート衝突時のみ `APP_PORT` をオーナー確認のうえ変更し履歴に残す）。
 
-**開発開始・大きな機能塊**では **`docs/DEVELOPMENT_KICKOFF.md`** のオーナー意図を確認する。
+**開発開始・大きな機能塊**では **`docs/DEVELOPMENT_KICKOFF.md`** の指示どおりに着手する。
 
 ## 毎回の依頼にユーザーが付ける一言
 

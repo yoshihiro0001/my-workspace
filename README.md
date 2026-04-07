@@ -6,7 +6,7 @@
 
 1. **`00_START_HERE.md`**
 2. 初回セットアップ（名前・デプロイ）: **`docs/FIRST_AGENT_PROMPT.md`**
-3. **開発を始める**: **`docs/DEVELOPMENT_KICKOFF.md`**（自分の意図を書いてから AI に送る）
+3. **開発を始める**: **`docs/DEVELOPMENT_KICKOFF.md`** の指示文をコピーして AI に送る
 
 ## ローカル開発
 
