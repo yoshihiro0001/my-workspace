@@ -4,12 +4,15 @@
 
 1. `00_START_HERE.md`
 2. 本ファイル
-3. **`docs/00_constitution.md`**（このプロダクトの正）
-4. **`docs/01_history.md`**（直近の変更・判断）
-5. **`docs/02_operations.md`**（デプロイ・検証）
-6. **`docs/DESIGN_HANDOVER.md`**（UI の詳細）
+3. **`docs/開発依頼書.md`**（このリポジトリのプロダクト仕様・正本）
+4. **`docs/00_constitution.md`**（このプロダクトの正）
+5. **`docs/01_history.md`**（直近の変更・判断）
+6. **`docs/02_operations.md`**（デプロイ・検証）
+7. **`docs/DESIGN_HANDOVER.md`**（UI の詳細）
 
 初回セットアップは **`docs/FIRST_AGENT_PROMPT.md`** の手順どおり。**リポジトリ名以外の値は `npm run bootstrap:derive -- <repo名>` の出力に従う**（ポート衝突時のみ `APP_PORT` をオーナー確認のうえ変更し履歴に残す）。
+
+**開発開始・大きな機能塊**では **`docs/DEVELOPMENT_KICKOFF.md`** のオーナー意図を確認する。
 
 ## 毎回の依頼にユーザーが付ける一言
 
@@ -29,7 +32,7 @@
 ## UI の絶対ルール
 
 - 新規画面・コンポーネントは **`docs/DESIGN_HANDOVER.md`** に従う。
-- プロダクト方針は **`docs/00_constitution.md`** を優先する。
+- プロダクト方針は **`docs/00_constitution.md`** と **`docs/開発依頼書.md`** を優先する。
 - ガラス系は **`src/index.css` の `.glass` / `.glass-card` / `.glass-panel`** を使うか、同じトーンで追加する。
 - ダーク基調（`bg-black`）、文字は `text-white/…` の透明度で階層を付ける。
 
@@ -41,7 +44,7 @@
 ## 履歴（必須）
 
 - **機能変更・バグ修正・デプロイ・憲法の変更**があったら、必ず **`docs/01_history.md` に追記**する。
-- **他プロジェクト**（例: tax / Keihi）の `ai_context` やサーバー固有パスを混ぜない。
+- **別プロジェクト**（例: tax / Keihi）の `ai_context` やサーバー固有パスを混ぜない。
 
 ## 変更してよい／注意
 
