@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * 管理対象プロジェクトのプレビュー用 production build。
- * ユーザーの vite.config を読み、ソース位置注入プラグインを先頭に付けて buildする。
+ * ユーザーの vite.config を読み、ソース位置注入プラグインを先頭に付けて build する。
+ * mergeConfig は後勝ちのため、inject → user のあと base/root を最終マージする。
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -44,6 +45,10 @@ if (!loaded?.config) {
 }
 
 const injectFirst = { plugins: [injectWorkspaceSource(projectDir)] };
-const merged = mergeConfig(injectFirst, loaded.config, { base, root: loaded.config.root || projectDir });
+const withUser = mergeConfig(injectFirst, loaded.config);
+const merged = mergeConfig(withUser, {
+  base,
+  root: loaded.config.root ? path.resolve(projectDir, loaded.config.root) : projectDir,
+});
 
 await build(merged);

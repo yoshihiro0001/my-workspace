@@ -547,3 +547,111 @@ server/lib/babel-plugin-ws-source-attrs.mjs, server/lib/vite-inject-source.mjs, 
 
 ■結果
 完了（`npm run check` / `npm run build` 通過）
+
+
+---
+
+【2026-04-20】
+
+■種別
+機能追加 / UI変更
+
+■内容
+ワークスペースをアダプティブ・スプリットビューに再構成した。`md` 以上では左にコード（ファイルツリー／エディタ）、右にプレビューを並べ、パネル重なりによるクリック干渉をなくした。`md` 未満では「プレビュー」「コード」のタブ切り替え（最小タップ 44px 付近）とし、インスペクタで要素を選んだ際は自動でコードタブへ切り替えて該当行を表示する。
+
+1. **`WorkspaceView`**: スプリットレイアウト、`useMediaQuery` によるモバイルタブ、コードパネルのオーバーレイ廃止。トップバーのコードアイコンは狭い画面でコードタブへのショートカット。
+2. **`CodeLayer`**: ボトムシートをやめパネル化。`inspectorPassthrough` と `pointer-events` 透過を削除。インスペクタ由来のソースジャンプ時は `code-line-inspector-glow` で行を一時発光。
+3. **`PreviewLayer`**: `workspaceSplit` で iframe を幅100%にし、デバイス幅トグルを非表示。インスペクタ・リロードはモバイルで 44px タップターゲット。
+4. **`server/inspector-client.js`**: `elementsFromPoint` ベースの `pickElementAt`、タップ移動量しきい値（スクロール検知抑制）、タッチ後のクリック二重発火防止。
+5. **`server/lib/babel-plugin-ws-source-attrs.mjs`**: `JSXMemberExpression`（`motion.div` 等）のタグ判定、`data-ws-col` 付与、重複ガード強化。
+6. **`server/lib/vite-inject-source.mjs`**: `retainLines: true` で行位置の安定化（`@babel/preset-react` は JSX を変換してプラグインが効かなくなるため未使用）。
+7. **`src/index.css`**: `ws-code-glow` キーフレーム。`FileTree`: モバイル向けタップ領域拡大。
+
+■理由
+インスペクタとコード操作を同時に快適に使うため、物理分割とタブ UX でポインタ競合を解消する。Vite+React ビルドでは data-ws-* の精度とインスペクタのタップ判定を上げる。
+
+■対象
+src/components/WorkspaceView.tsx, src/components/CodeLayer.tsx, src/components/PreviewLayer.tsx, src/components/FileTree.tsx, src/hooks/useMediaQuery.ts, src/index.css, server/inspector-client.js, server/lib/babel-plugin-ws-source-attrs.mjs, server/lib/vite-inject-source.mjs, docs/01_history.md
+
+■結果
+完了（`npm run check` / `npm run build` 通過）
+
+---
+
+【2026-04-21】
+
+■種別
+UI変更 / 機能追加
+
+■内容
+プレビュー iframe 内インスペクタで要素を確定選択（青枠）した際、要素付近に **「相対パス : L行番号」** 専用ラベル（`__ins_sel_label`）を表示するようにした。ダーク背景・スカイ系の文字色・角丸・シャドウで `docs/DESIGN_HANDOVER.md` のトーンに合わせ、`data-ws-*` が無い要素は「ソース位置なし」とタグ情報を表示。選択時はホバー用の緑ラベルをいったん隠し視認性を上げた。インスペクタ OFF / `inspector-clear` 時は青枠・選択ラベルも非表示に統一。
+
+■理由
+プレビューだけ見ているときに、選択した要素がどのファイルの何行に対応するか即わかるようにするため。
+
+■対象
+server/inspector-client.js, docs/01_history.md
+
+■結果
+完了（`npm run check` / `npm run build` 通過）
+
+---
+
+【2026-04-22】
+
+■種別
+修正 / 機能強化
+
+■内容
+1. **ワークスペース**: モバイルのタブ切り替えをやめ、**常に左右50% の物理スプリット**（`flex-row` + `basis-1/2`）に統一。コードとプレビューが重ならないようにした。  
+2. **プレビュー Vite ビルド**: `mergeConfig` の後勝ちによりユーザーの `vite.config` の `base` がプレビュー用 `base` を上書きしうる問題を、`inject + user` マージの**後**に `base` / `root` を再マージする形で修正。`workspace-inject-source` に `apply: 'build'`、モジュール ID の `?` / `#` 除去、`\0` 仮想モジュール除外、Babel の `filename` をクリーンなパスに統一。`babel-plugin-ws-source-attrs` はパスを `normalize` して相対パス算出を安定化。
+3. **インスペクタ**: ホバー・確定のラベルとも **`相対パス : L行`** を最優先表示。`data-ws-*` が無い場合は **「位置データなし」** のみ（タグ・クラス表記はやめた）。
+
+■理由
+プレビュー下部の不具合の原因になりうる重なりを無くし、dist にソース位置属性が確実に載り、ラベルでファイル・行が一目で分かるようにするため。
+
+■対象
+src/components/WorkspaceView.tsx, server/lib/run-preview-vite-build.mjs, server/lib/vite-inject-source.mjs, server/lib/babel-plugin-ws-source-attrs.mjs, server/inspector-client.js, docs/01_history.md
+
+■結果
+完了（`npm run check` / `npm run build` 通過）
+
+---
+
+【2026-04-23】
+
+■種別
+修正
+
+■内容
+1. **プレビュー Vite ビルド失敗の解消**: 取り込みプロジェクトを `cwd` にした Babel が `@babel/preset-typescript` を子側で解決しようとして `ERR_MODULE_NOT_FOUND` になる問題に対し、`createRequire(import.meta.url)` と `require.resolve('@babel/preset-typescript')` でホスト側で解決した preset の絶対パスを渡すよう変更。変換失敗時は `[workspace-inject-source]` をログして元ソースのままスキップ（`return null`）しビルド全体を止めない。`vite-inject-source.mjs` 先頭コメントの文字化けを英語コメントに差し替え。
+2. **data-ws-* の安全な注入**: `babel-plugin-ws-source-attrs` で小文字で始まる組み込みタグ（div 等）は注入せず、PascalCase コンポーネントと `JSXMemberExpression`（例: `motion.div`）のみに `data-ws-file` / `line` / `col` を付与（`Fragment` は除外）。
+3. **検証**: `npm run check` / `npm run build`、および `node server/lib/run-preview-vite-build.mjs workspace-data/repos/c5513b4e-5780-4d60-8c28-f81f5da80c8c /preview-base/` で成功を確認。
+
+■理由
+プレビュー失敗の主因は、子プロジェクトを cwd とした Babel が `@babel/preset-typescript` を解決できなかったこと。あわせて div 等への属性の全付与はリスクが高いため、PascalCase と member 形式の JSX のみに限定した。
+
+■対象
+server/lib/vite-inject-source.mjs, server/lib/babel-plugin-ws-source-attrs.mjs, package-lock.json, docs/01_history.md
+
+■結果
+完了（上記コマンド通過）
+
+---
+
+【2026-04-24】
+
+■種別
+ドキュメント / その他
+
+■内容
+上記 2026-04-19〜04-23 の実装・修正（スプリットワークスペース、インスペクタ、プレビュー Vite ビルド、data-ws-* 注入、Babel preset 解決）をリポジトリに反映するコミットとして整理。`package-lock.json` は `@babel/core` / `preset-react` / `preset-typescript` の devDependencies と同期。
+
+■理由
+履歴の正とコード・ロックファイルの状態を一致させ、再現可能な `npm ci` を保つため。
+
+■対象
+docs/01_history.md, package-lock.json, src/components/WorkspaceView.tsx, src/components/CodeLayer.tsx, src/components/PreviewLayer.tsx, src/components/FileTree.tsx, src/hooks/useMediaQuery.ts, src/index.css, server/inspector-client.js, server/lib/babel-plugin-ws-source-attrs.mjs, server/lib/vite-inject-source.mjs, server/lib/run-preview-vite-build.mjs
+
+■結果
+完了（`npm run check` / `npm run build` 通過）

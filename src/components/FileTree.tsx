@@ -53,11 +53,12 @@ function TreeNode({
   return (
     <div>
       <button
+        type="button"
         onClick={() => {
           if (isFolder) setOpen((v) => !v);
           else onSelect(entry);
         }}
-        className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs transition-colors ${
+        className={`flex min-h-[44px] w-full items-center gap-1.5 rounded-lg px-2 py-2.5 text-left text-xs transition-colors md:min-h-0 md:py-1.5 ${
           isSelected
             ? 'bg-white/10 text-white'
             : 'text-white/60 hover:bg-white/5 hover:text-white/80'

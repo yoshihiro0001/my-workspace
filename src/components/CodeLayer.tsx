@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Highlight, themes } from 'prism-react-renderer';
-import { X, Save, ChevronDown, ChevronUp, FileCode2, Pencil } from 'lucide-react';
+import { Save, ChevronDown, ChevronUp, FileCode2, Pencil } from 'lucide-react';
 import type { FileEntry, InspectorElement } from '../types';
 import { FileTree } from './FileTree';
 import { ValueSlider, detectEditableValues, type EditableValue } from './ValueSlider';
@@ -13,10 +13,9 @@ type Props = {
   selectedElement: InspectorElement | null;
   onTreeRefresh: () => void;
   onFileChanged: () => void;
-  onClose: () => void;
   onFileSelect?: (path: string, code: string) => void;
-  /** インスペクタ ON 時: 一覧・編集領域のクリックをプレビューへ通す（ヘッダー・スライダーは操作可） */
-  inspectorPassthrough?: boolean;
+  /** レイアウト用（スプリットパネルで高さを親に合わせる） */
+  className?: string;
 };
 
 function detectLanguage(path: string): string {
@@ -52,8 +51,13 @@ function findMatchLines(code: string, element: InspectorElement): number[] {
 }
 
 export function CodeLayer({
-  projectId, tree, selectedElement, onTreeRefresh, onFileChanged, onClose, onFileSelect,
-  inspectorPassthrough = false,
+  projectId,
+  tree,
+  selectedElement,
+  onTreeRefresh,
+  onFileChanged,
+  onFileSelect,
+  className = '',
 }: Props) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [code, setCode] = useState('');
@@ -196,71 +200,57 @@ export function CodeLayer({
     return null;
   };
 
-  return (
-    <motion.div
-      initial={{ y: '100%' }}
-      animate={{ y: 0 }}
-      exit={{ y: '100%' }}
-      transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-      className="absolute inset-x-0 bottom-0 z-30 flex max-h-[55vh] flex-col rounded-t-[1.5rem] border-t border-white/10 bg-black/95 backdrop-blur-xl"
-    >
-      <div className={inspectorPassthrough ? 'shrink-0 pointer-events-auto' : 'shrink-0'}>
-        <div className="flex items-center justify-center py-2">
-          <div className="h-1 w-10 rounded-full bg-white/20" />
-        </div>
+  const fromInspectorSource =
+    Boolean(selectedElement?.sourceFile && selectedElement.sourceLine != null);
 
-        {/* Header */}
-        <div className="flex items-center justify-between gap-2 border-b border-white/5 px-4 pb-2">
-        <div className="flex items-center gap-2 overflow-hidden">
-          <button
-            onClick={() => setShowTree((v) => !v)}
-            className="flex h-7 items-center gap-1 rounded-lg bg-white/5 px-2 text-[10px] font-medium text-white/50 transition-colors hover:bg-white/10"
-          >
-            <FileCode2 size={12} />
-            {showTree ? <ChevronDown size={10} /> : <ChevronUp size={10} />}
-          </button>
-          {selectedFile && (
-            <span className="truncate font-mono text-[11px] text-emerald-400">{selectedFile}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5">
-          {selectedFile && !isEditing && (
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setIsEditing(true)}
-              className="flex h-7 items-center gap-1 rounded-lg bg-white/5 px-2.5 text-[10px] text-white/50 hover:bg-white/10"
+  return (
+    <div className={`flex min-h-0 flex-1 flex-col bg-black/95 backdrop-blur-xl ${className}`}>
+      <div className="shrink-0 border-b border-white/5">
+        <div className="flex items-center justify-between gap-2 px-3 py-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowTree((v) => !v)}
+              className="flex h-9 min-h-[44px] shrink-0 items-center gap-1 rounded-lg bg-white/5 px-2.5 text-[10px] font-medium text-white/50 transition-colors hover:bg-white/10 md:h-8 md:min-h-0"
             >
-              <Pencil size={10} />
-              <span>編集</span>
-            </motion.button>
-          )}
-          {isEditing && (
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={handleSave}
-              disabled={saving}
-              className="flex h-7 items-center gap-1 rounded-lg bg-emerald-500/20 px-2.5 text-[10px] font-medium text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-40"
-            >
-              <Save size={10} />
-              <span>{saving ? '保存中…' : '保存'}</span>
-            </motion.button>
-          )}
-          <button
-            onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 text-white/40 hover:bg-white/10"
-          >
-            <X size={14} />
-          </button>
-        </div>
+              <FileCode2 size={12} />
+              {showTree ? <ChevronDown size={10} /> : <ChevronUp size={10} />}
+            </button>
+            {selectedFile && (
+              <span className="truncate font-mono text-[11px] text-emerald-400">{selectedFile}</span>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {selectedFile && !isEditing && (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setIsEditing(true)}
+                className="flex h-9 min-h-[44px] items-center gap-1 rounded-lg bg-white/5 px-2.5 text-[10px] text-white/50 hover:bg-white/10 md:h-8 md:min-h-0"
+              >
+                <Pencil size={10} />
+                <span>編集</span>
+              </motion.button>
+            )}
+            {isEditing && (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.9 }}
+                onClick={handleSave}
+                disabled={saving}
+                className="flex h-9 min-h-[44px] items-center gap-1 rounded-lg bg-emerald-500/20 px-2.5 text-[10px] font-medium text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-40 md:h-8 md:min-h-0"
+              >
+                <Save size={10} />
+                <span>{saving ? '保存中…' : '保存'}</span>
+              </motion.button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Slider bar */}
       <AnimatePresence>
         {activeSlider && (
-          <div
-            className={`border-b border-white/5 px-4 py-2 ${inspectorPassthrough ? 'pointer-events-auto' : ''}`}
-          >
+          <div className="shrink-0 border-b border-white/5 px-3 py-2">
             <ValueSlider
               value={activeSlider}
               onChange={(newRaw) => handleSliderChange(activeSlider, newRaw)}
@@ -270,10 +260,7 @@ export function CodeLayer({
         )}
       </AnimatePresence>
 
-      {/* Content — インスペクタ ON 時はプレビューへクリックを通す */}
-      <div
-        className={`flex-1 overflow-auto ${inspectorPassthrough ? 'pointer-events-none' : ''}`}
-      >
+      <div className="min-h-0 flex-1 overflow-auto">
         <AnimatePresence mode="wait">
           {showTree && !selectedFile ? (
             <motion.div key="tree" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-2">
@@ -286,7 +273,7 @@ export function CodeLayer({
                   value={editedCode}
                   onChange={(e) => setEditedCode(e.target.value)}
                   spellCheck={false}
-                  className="min-h-[30vh] w-full resize-none bg-transparent p-4 font-mono text-xs leading-relaxed text-white/80 outline-none"
+                  className="min-h-[40vh] w-full resize-none bg-transparent p-4 font-mono text-xs leading-relaxed text-white/80 outline-none md:min-h-[50vh]"
                 />
               ) : (
                 <Highlight theme={themes.nightOwl} code={code} language={language}>
@@ -294,12 +281,17 @@ export function CodeLayer({
                     <pre className="overflow-x-auto p-4 text-xs leading-relaxed">
                       {tokens.map((line, lineIdx) => {
                         const isHL = highlightLines.includes(lineIdx);
+                        const glow = isHL && fromInspectorSource;
                         return (
                           <div
                             key={lineIdx}
                             data-line={lineIdx}
                             {...getLineProps({ line })}
-                            className={`flex ${isHL ? 'rounded bg-emerald-500/15 ring-1 ring-emerald-500/30' : ''}`}
+                            className={`flex ${
+                              isHL
+                                ? `rounded bg-emerald-500/15 ring-1 ring-emerald-400/40 ${glow ? 'code-line-inspector-glow' : ''}`
+                                : ''
+                            }`}
                           >
                             <span className="mr-4 inline-block w-8 select-none text-right text-white/20">
                               {lineIdx + 1}
@@ -314,7 +306,10 @@ export function CodeLayer({
                                     <span
                                       key={tokenIdx}
                                       {...tokenProps}
+                                      role="button"
+                                      tabIndex={0}
                                       onClick={() => setActiveSlider(ev)}
+                                      onKeyDown={(e) => e.key === 'Enter' && setActiveSlider(ev)}
                                       className={`cursor-pointer rounded px-0.5 font-bold transition-colors ${
                                         isActive
                                           ? 'bg-emerald-500/25 text-emerald-300 ring-1 ring-emerald-500/40'
@@ -352,9 +347,8 @@ export function CodeLayer({
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 export type { Props as CodeLayerProps };
-export { CodeLayer as default };

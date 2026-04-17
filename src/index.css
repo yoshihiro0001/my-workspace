@@ -22,4 +22,19 @@
   .glass-hover {
     @apply hover:bg-white/10;
   }
+
+  /* Inspector: temporary glow on jumped-to source line */
+  .code-line-inspector-glow {
+    animation: ws-code-glow 1.15s ease-out 2;
+  }
+}
+
+@keyframes ws-code-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+  }
+  45% {
+    box-shadow: 0 0 22px 4px rgba(52, 211, 153, 0.32);
+  }
 }

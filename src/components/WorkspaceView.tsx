@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, Code2, Save, GitCommit, History,
+  ArrowLeft, Save, GitCommit, History,
   CheckCircle2, Loader2, Sparkles,
 } from 'lucide-react';
 import type { Project, FileEntry, InspectorElement, GitLogEntry, AppSettings } from '../types';
@@ -18,7 +18,6 @@ type Props = {
 
 export function WorkspaceView({ project, settings, onBack }: Props) {
   const [tree, setTree] = useState<FileEntry[]>([]);
-  const [showCode, setShowCode] = useState(false);
   const [showAgent, setShowAgent] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [selectedElement, setSelectedElement] = useState<InspectorElement | null>(null);
@@ -43,7 +42,6 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
 
   const handleElementSelected = useCallback((el: InspectorElement) => {
     setSelectedElement(el);
-    setShowCode(true);
   }, []);
 
   const handleFileChanged = useCallback(() => {
@@ -109,13 +107,13 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-black">
-      {/* Top bar */}
-      <div className="relative z-40 flex items-center justify-between gap-2 border-b border-white/5 bg-black/90 px-3 py-2 backdrop-blur-sm">
-        <div className="flex items-center gap-2 overflow-hidden">
+      <div className="relative z-40 flex shrink-0 items-center justify-between gap-2 border-b border-white/5 bg-black/90 px-3 py-2 backdrop-blur-sm">
+        <div className="flex min-w-0 items-center gap-2">
           <motion.button
+            type="button"
             whileTap={{ scale: 0.9 }}
             onClick={onBack}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5 text-white/60 hover:bg-white/10"
+            className="flex h-9 min-h-[44px] w-9 min-w-[44px] shrink-0 items-center justify-center rounded-lg bg-white/5 text-white/60 hover:bg-white/10 md:h-8 md:min-h-0 md:w-8 md:min-w-0"
           >
             <ArrowLeft size={16} />
           </motion.button>
@@ -123,23 +121,11 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
         </div>
 
         <div className="flex items-center gap-1.5">
-          {/* Code toggle */}
           <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setShowCode((v) => !v)}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
-              showCode ? 'bg-blue-500/20 text-blue-400' : 'bg-white/5 text-white/40 hover:bg-white/10'
-            }`}
-            title="コード"
-          >
-            <Code2 size={16} />
-          </motion.button>
-
-          {/* AI Agent */}
-          <motion.button
+            type="button"
             whileTap={{ scale: 0.9 }}
             onClick={() => setShowAgent(true)}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+            className={`flex h-9 min-h-[44px] w-9 min-w-[44px] items-center justify-center rounded-lg transition-colors md:h-8 md:min-h-0 md:w-8 md:min-w-0 ${
               showAgent ? 'bg-purple-500/20 text-purple-400' : 'bg-white/5 text-white/40 hover:bg-white/10'
             }`}
             title="AI アシスタント"
@@ -147,22 +133,22 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
             <Sparkles size={14} />
           </motion.button>
 
-          {/* Commit */}
           <motion.button
+            type="button"
             whileTap={{ scale: 0.9 }}
             onClick={handleCommit}
             disabled={committing}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-white/40 transition-colors hover:bg-white/10 disabled:opacity-40"
+            className="flex h-9 min-h-[44px] w-9 min-w-[44px] items-center justify-center rounded-lg bg-white/5 text-white/40 transition-colors hover:bg-white/10 disabled:opacity-40 md:h-8 md:min-h-0 md:w-8 md:min-w-0"
             title="保存（コミット）"
           >
             {committing ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
           </motion.button>
 
-          {/* History */}
           <motion.button
+            type="button"
             whileTap={{ scale: 0.9 }}
             onClick={handleShowHistory}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-white/40 transition-colors hover:bg-white/10"
+            className="flex h-9 min-h-[44px] w-9 min-w-[44px] items-center justify-center rounded-lg bg-white/5 text-white/40 transition-colors hover:bg-white/10 md:h-8 md:min-h-0 md:w-8 md:min-w-0"
             title="履歴"
           >
             <History size={14} />
@@ -170,7 +156,6 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
         </div>
       </div>
 
-      {/* Flash message */}
       <AnimatePresence>
         {flash && (
           <motion.div
@@ -185,34 +170,31 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
         )}
       </AnimatePresence>
 
-      {/* Preview */}
-      <div className="relative flex-1">
-        <PreviewLayer
-          ref={previewRef}
-          previewUrl={api.previewUrl(project.id)}
-          onElementSelected={handleElementSelected}
-          inspectMode={inspectMode}
-          onInspectModeChange={setInspectMode}
-        />
-
-        {/* Code layer */}
-        <AnimatePresence>
-          {showCode && (
-            <CodeLayer
-              projectId={project.id}
-              tree={tree}
-              selectedElement={selectedElement}
-              onTreeRefresh={refreshTree}
-              onFileChanged={handleFileChanged}
-              onFileSelect={handleFileSelect}
-              onClose={() => setShowCode(false)}
-              inspectorPassthrough={inspectMode}
-            />
-          )}
-        </AnimatePresence>
+      {/* 常時左右分割（物理的に重ならない） */}
+      <div className="flex min-h-0 flex-1 flex-row">
+        <aside className="flex min-h-0 min-w-0 flex-1 basis-1/2 flex-col border-r border-white/5">
+          <CodeLayer
+            projectId={project.id}
+            tree={tree}
+            selectedElement={selectedElement}
+            onTreeRefresh={refreshTree}
+            onFileChanged={handleFileChanged}
+            onFileSelect={handleFileSelect}
+            className="min-w-0"
+          />
+        </aside>
+        <section className="flex min-h-0 min-w-0 flex-1 basis-1/2 flex-col">
+          <PreviewLayer
+            ref={previewRef}
+            previewUrl={api.previewUrl(project.id)}
+            onElementSelected={handleElementSelected}
+            inspectMode={inspectMode}
+            onInspectModeChange={setInspectMode}
+            workspaceSplit
+          />
+        </section>
       </div>
 
-      {/* Agent layer */}
       <AnimatePresence>
         {showAgent && (
           <AgentLayer
@@ -231,7 +213,6 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
         )}
       </AnimatePresence>
 
-      {/* History overlay */}
       <AnimatePresence>
         {showHistory && (
           <motion.div
@@ -269,6 +250,7 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
                         </div>
                         {i > 0 && (
                           <motion.button
+                            type="button"
                             whileTap={{ scale: 0.95 }}
                             onClick={() => handleRevert(entry.hash)}
                             className="shrink-0 rounded-full bg-white/10 px-3 py-1 text-[10px] font-medium text-white/60 hover:bg-white/15"
