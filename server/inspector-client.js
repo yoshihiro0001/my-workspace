@@ -1,6 +1,7 @@
 /**
  * Inspector script — プレビュー iframe に注入される。
  * 要素の選択・ハイライトを行い、親フレームに postMessage で通知する。
+ * data-ws-file / data-ws-line が付いたビルドではソース位置を親に渡す。
  */
 export const INSPECTOR_SCRIPT = `<script data-inspector="true">(function(){
   var inspectMode = false;
@@ -18,7 +19,7 @@ export const INSPECTOR_SCRIPT = `<script data-inspector="true">(function(){
 
   var label = document.createElement('div');
   label.id='__ins_label';
-  label.style.cssText='position:fixed;z-index:2147483647;pointer-events:none;background:#0a0a0a;color:#00ff88;font:500 11px/1.4 monospace;padding:2px 8px;border-radius:4px;display:none;white-space:nowrap;border:1px solid rgba(0,255,136,0.3);';
+  label.style.cssText='position:fixed;z-index:2147483647;pointer-events:none;background:#0a0a0a;color:#00ff88;font:500 11px/1.4 monospace;padding:2px 8px;border-radius:4px;display:none;max-width:90vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid rgba(0,255,136,0.3);';
   document.documentElement.appendChild(label);
 
   window.addEventListener('message',function(e){
@@ -40,11 +41,25 @@ export const INSPECTOR_SCRIPT = `<script data-inspector="true">(function(){
     box.style.width=rect.width+'px'; box.style.height=rect.height+'px';
   }
 
+  function findSource(el){
+    var cur=el;
+    while(cur&&cur!==document.documentElement){
+      if(cur.getAttribute){
+        var f=cur.getAttribute('data-ws-file');
+        var ln=cur.getAttribute('data-ws-line');
+        if(f&&ln){ return {file:f,line:parseInt(ln,10)}; }
+      }
+      cur=cur.parentElement;
+    }
+    return null;
+  }
+
   function showLabel(el,rect){
     var tag=el.tagName.toLowerCase();
     var cls=el.className&&typeof el.className==='string'?'.'+el.className.trim().split(/\\s+/).join('.'):'';
     var id=el.id&&!el.id.startsWith('__ins_')?'#'+el.id:'';
-    label.textContent='<'+tag+id+cls+'>';
+    var src=findSource(el);
+    label.textContent= src ? (src.file+':'+src.line+' · <'+tag+id+cls+'>') : ('<'+tag+id+cls+'>');
     label.style.display='block';
     var lx=rect.left; var ly=rect.top-24;
     if(ly<0) ly=rect.bottom+4;
@@ -68,6 +83,7 @@ export const INSPECTOR_SCRIPT = `<script data-inspector="true">(function(){
     var r=el.getBoundingClientRect();
     positionBox(sel,r);
     var cs=window.getComputedStyle(el);
+    var src=findSource(el);
     var info={
       type:'element-selected',
       tag:el.tagName.toLowerCase(),
@@ -85,6 +101,7 @@ export const INSPECTOR_SCRIPT = `<script data-inspector="true">(function(){
       rect:{x:r.x,y:r.y,width:r.width,height:r.height},
       html:el.outerHTML.slice(0,600)
     };
+    if(src){ info.sourceFile=src.file; info.sourceLine=src.line; }
     for(var i=0;i<el.attributes.length;i++){
       var a=el.attributes[i];
       if(!a.name.startsWith('__')) info.attributes[a.name]=a.value;

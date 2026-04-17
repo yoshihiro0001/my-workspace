@@ -15,6 +15,8 @@ type Props = {
   onFileChanged: () => void;
   onClose: () => void;
   onFileSelect?: (path: string, code: string) => void;
+  /** インスペクタ ON 時: 一覧・編集領域のクリックをプレビューへ通す（ヘッダー・スライダーは操作可） */
+  inspectorPassthrough?: boolean;
 };
 
 function detectLanguage(path: string): string {
@@ -51,6 +53,7 @@ function findMatchLines(code: string, element: InspectorElement): number[] {
 
 export function CodeLayer({
   projectId, tree, selectedElement, onTreeRefresh, onFileChanged, onClose, onFileSelect,
+  inspectorPassthrough = false,
 }: Props) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [code, setCode] = useState('');
@@ -86,7 +89,33 @@ export function CodeLayer({
   );
 
   useEffect(() => {
-    if (selectedElement && code) {
+    if (!selectedElement) return;
+
+    if (selectedElement.sourceFile && selectedElement.sourceLine != null) {
+      const lineIdx = Math.max(0, selectedElement.sourceLine - 1);
+      void (async () => {
+        try {
+          const { content } = await api.readFile(projectId, selectedElement.sourceFile!);
+          setCode(content);
+          setEditedCode(content);
+          setSelectedFile(selectedElement.sourceFile!);
+          setIsEditing(false);
+          setHighlightLines([lineIdx]);
+          setEditableValues(detectEditableValues(content));
+          onFileSelect?.(selectedElement.sourceFile!, content);
+          setShowTree(false);
+          setTimeout(() => {
+            const lineEl = codeRef.current?.querySelector(`[data-line="${lineIdx}"]`);
+            lineEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 120);
+        } catch {
+          /* ignore */
+        }
+      })();
+      return;
+    }
+
+    if (code) {
       const matches = findMatchLines(code, selectedElement);
       setHighlightLines(matches);
       if (matches.length > 0 && codeRef.current) {
@@ -96,7 +125,7 @@ export function CodeLayer({
         }, 100);
       }
     }
-  }, [selectedElement, code]);
+  }, [selectedElement, code, projectId, onFileSelect]);
 
   const saveAndRefresh = useCallback(
     async (newCode: string) => {
@@ -175,12 +204,13 @@ export function CodeLayer({
       transition={{ type: 'spring', damping: 30, stiffness: 300 }}
       className="absolute inset-x-0 bottom-0 z-30 flex max-h-[55vh] flex-col rounded-t-[1.5rem] border-t border-white/10 bg-black/95 backdrop-blur-xl"
     >
-      <div className="flex items-center justify-center py-2">
-        <div className="h-1 w-10 rounded-full bg-white/20" />
-      </div>
+      <div className={inspectorPassthrough ? 'shrink-0 pointer-events-auto' : 'shrink-0'}>
+        <div className="flex items-center justify-center py-2">
+          <div className="h-1 w-10 rounded-full bg-white/20" />
+        </div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2 border-b border-white/5 px-4 pb-2">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-2 border-b border-white/5 px-4 pb-2">
         <div className="flex items-center gap-2 overflow-hidden">
           <button
             onClick={() => setShowTree((v) => !v)}
@@ -222,12 +252,15 @@ export function CodeLayer({
             <X size={14} />
           </button>
         </div>
+        </div>
       </div>
 
       {/* Slider bar */}
       <AnimatePresence>
         {activeSlider && (
-          <div className="border-b border-white/5 px-4 py-2">
+          <div
+            className={`border-b border-white/5 px-4 py-2 ${inspectorPassthrough ? 'pointer-events-auto' : ''}`}
+          >
             <ValueSlider
               value={activeSlider}
               onChange={(newRaw) => handleSliderChange(activeSlider, newRaw)}
@@ -237,8 +270,10 @@ export function CodeLayer({
         )}
       </AnimatePresence>
 
-      {/* Content */}
-      <div className="flex-1 overflow-auto">
+      {/* Content — インスペクタ ON 時はプレビューへクリックを通す */}
+      <div
+        className={`flex-1 overflow-auto ${inspectorPassthrough ? 'pointer-events-none' : ''}`}
+      >
         <AnimatePresence mode="wait">
           {showTree && !selectedFile ? (
             <motion.div key="tree" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-2">

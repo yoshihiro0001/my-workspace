@@ -27,6 +27,7 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
   const [committing, setCommitting] = useState(false);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [currentCode, setCurrentCode] = useState('');
+  const [inspectMode, setInspectMode] = useState(false);
   const previewRef = useRef<PreviewHandle>(null);
 
   const refreshTree = useCallback(async () => {
@@ -190,6 +191,8 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
           ref={previewRef}
           previewUrl={api.previewUrl(project.id)}
           onElementSelected={handleElementSelected}
+          inspectMode={inspectMode}
+          onInspectModeChange={setInspectMode}
         />
 
         {/* Code layer */}
@@ -203,6 +206,7 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
               onFileChanged={handleFileChanged}
               onFileSelect={handleFileSelect}
               onClose={() => setShowCode(false)}
+              inspectorPassthrough={inspectMode}
             />
           )}
         </AnimatePresence>

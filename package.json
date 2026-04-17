@@ -28,6 +28,9 @@
     "simple-git": "^3.36.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/preset-react": "^7.26.3",
+    "@babel/preset-typescript": "^7.26.0",
     "concurrently": "^9.1.2",
     "@types/adm-zip": "^0.5.8",
     "@types/multer": "^2.1.0",

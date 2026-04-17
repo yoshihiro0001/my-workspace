@@ -514,10 +514,36 @@ Vite プロジェクトのプレビューを本番（`npm run build` の `dist` 
 3. **URL 解決**: `getPreviewRequestPath` を `/projects/:id/preview` サフィックス基準に変更し、本番の `SUBPATH` 付き URL でもアセットパスが一致するようにした。
 
 ZIP で取り込んだ Vite+React は開発時の `/src/main.tsx` 直配信ではホスト側 Vite に吸い寄せられ真っ暗・不一致になる。本番と同じくビルド済み静的成果物をサブパス `base` 付きで配ればインポートしたサイトをそのままプレビューできる。
-ZIP で取り込んだ Vite+React は開発時の `/src/main.tsx` 直配信ではホスト側 Vite に吸い寄せられ真っ暗・不一致になる。本番と同じくビルド済み静的成果物をサブパス `base` 付きで配ればイン��ートしたサイトをそのままプレビューできる。
 
 ■対象
 server/lib/preview-build.js, server/api.js, docs/01_history.md
+
+■結果
+完了（`npm run check` / `npm run build` 通過）
+
+---
+
+【2026-04-19】
+
+■種別
+機能追加 / 修正
+
+■内容
+プレビュー・インスペクタで「どのファイルの何行か」を即座に把握し、コードレイヤーで該当行をハイライト表示できるようにした。インスペクタ ON 中はコードパネルの本文を `pointer-events-none` にしクリックをプレビューへ通し、ヘッダー・ドラッグハンドル・値スライダーは操作可能とした。
+
+1. **ビルド時のソース位置注入**: `server/lib/babel-plugin-ws-source-attrs.mjs` で JSX 開始タグに `data-ws-file` / `data-ws-line` を付与。`server/lib/vite-inject-source.mjs` を `enforce: 'pre'` で適用し、`server/lib/run-preview-vite-build.mjs` でホストの Vite 設定にマージしてビルド。`server/lib/preview-build.js` は Vite 系プロジェクトで当該フローを利用（以前どおりの `npm run build` フォールバックあり）。
+
+2. **インスペクタ**: `server/inspector-client.js` が祖先をたどって `path:line` を表示し、親へ `sourceFile` / `sourceLine` を `postMessage`。
+
+3. **フロント**: `InspectorElement` にソース位置フィールドを追加（`src/types.ts`）。`WorkspaceView` がインスペクタモードを保持し `PreviewLayer` / `CodeLayer` に連携。`CodeLayer` は選択要素にソースがあればファイルを開き該当行を強調スクロール。`PreviewLayer` のインスペクタ ON/OFF は親制御に統一。
+
+4. **修正**: `CodeLayer` のラッパー `div` 構造を整理（余分な閉じタグの解消、ヘッダーまわりの `pointer-events-auto`）。
+
+■理由
+インスペクタで下側パネル領域から要素を拾ったときにソースへジャンプし、編集フローまでつなげるため。ビルド成果物にのみ属性を載せる方式で、開発サーバ直結ではなく dist プレビューと整合させる。
+
+■対象
+server/lib/babel-plugin-ws-source-attrs.mjs, server/lib/vite-inject-source.mjs, server/lib/run-preview-vite-build.mjs, server/lib/preview-build.js, server/inspector-client.js, package.json, src/types.ts, src/components/PreviewLayer.tsx, src/components/WorkspaceView.tsx, src/components/CodeLayer.tsx, docs/01_history.md
 
 ■結果
 完了（`npm run check` / `npm run build` 通過）

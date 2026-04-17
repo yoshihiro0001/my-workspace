@@ -18,12 +18,13 @@ export type PreviewHandle = {
 type Props = {
   previewUrl: string;
   onElementSelected: (el: InspectorElement) => void;
+  inspectMode: boolean;
+  onInspectModeChange: (enabled: boolean) => void;
 };
 
 export const PreviewLayer = forwardRef<PreviewHandle, Props>(
-  function PreviewLayer({ previewUrl, onElementSelected }, ref) {
+  function PreviewLayer({ previewUrl, onElementSelected, inspectMode, onInspectModeChange }, ref) {
     const iframeRef = useRef<HTMLIFrameElement>(null);
-    const [inspectMode, setInspectMode] = useState(false);
     const [device, setDevice] = useState<DeviceMode>('mobile');
     const [refreshKey, setRefreshKey] = useState(0);
 
@@ -50,8 +51,8 @@ export const PreviewLayer = forwardRef<PreviewHandle, Props>(
     }, [inspectMode]);
 
     const toggleInspect = useCallback(() => {
-      setInspectMode((v) => !v);
-    }, []);
+      onInspectModeChange(!inspectMode);
+    }, [inspectMode, onInspectModeChange]);
 
     const refresh = useCallback(() => {
       setRefreshKey((k) => k + 1);

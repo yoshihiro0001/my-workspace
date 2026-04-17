@@ -3,8 +3,11 @@
  */
 import { spawn } from 'node:child_process';
 import { readFile, rm } from 'fs/promises';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /** @typedef {{ status: 'building'|'ready'|'error', promise?: Promise<void>, error?: string }} BuildSlot */
 
@@ -90,11 +93,32 @@ export function kickBuild(projectId, projectDir) {
   promise.catch(() => {});
 }
 
+const VITE_CONFIG_NAMES = [
+  'vite.config.ts', 'vite.config.mts', 'vite.config.cts',
+  'vite.config.js', 'vite.config.mjs', 'vite.config.cjs',
+];
+
 async function doBuild(projectId, projectDir) {
   const base = previewBaseForProject(projectId);
   try {
     await npm(projectDir, ['install', '--no-fund', '--no-audit'], {});
-    await npm(projectDir, ['run', 'build'], { VITE_BASE_PATH: base });
+    const pkg = JSON.parse(await readFile(join(projectDir, 'package.json'), 'utf-8'));
+    const buildScript = pkg.scripts?.build || '';
+    const hasViteConfig = VITE_CONFIG_NAMES.some((n) => existsSync(join(projectDir, n)));
+    const usesViteBuild = /vite\s+build/.test(buildScript)
+      || buildScript.trim() === ''
+      || /(^|\s)vite\s*$/.test(buildScript.trim());
+
+    if (hasViteConfig && usesViteBuild) {
+      if (/tsc/.test(buildScript) && existsSync(join(projectDir, 'tsconfig.json'))) {
+        const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+        await runCmd(npx, ['tsc', '-b'], projectDir, {});
+      }
+      const runner = join(__dirname, 'run-preview-vite-build.mjs');
+      await runCmd(process.execPath, [runner, projectDir, base], projectDir, { VITE_BASE_PATH: base });
+    } else {
+      await npm(projectDir, ['run', 'build'], { VITE_BASE_PATH: base });
+    }
     if (!existsSync(join(projectDir, 'dist', 'index.html'))) {
       throw new Error('ビルド後も dist/index.html が見つかりません');
     }

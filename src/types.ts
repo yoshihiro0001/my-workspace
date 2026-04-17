@@ -39,6 +39,9 @@ export type InspectorElement = {
   styles: Record<string, string>;
   rect: { x: number; y: number; width: number; height: number };
   html: string;
+  /** Preview build の data-ws-*から取ったソース位置（任意） */
+  sourceFile?: string;
+  sourceLine?: number;
 };
 
 // ── Settings (browser-local, IndexedDB) ──
