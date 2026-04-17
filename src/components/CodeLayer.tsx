@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Highlight, themes } from 'prism-react-renderer';
-import { Save, ChevronDown, ChevronUp, FileCode2, Pencil } from 'lucide-react';
+import { Save, ChevronDown, ChevronUp, FileCode2, Pencil, ListTree } from 'lucide-react';
 import type { FileEntry, InspectorElement } from '../types';
 import { FileTree } from './FileTree';
 import { ValueSlider, detectEditableValues, type EditableValue } from './ValueSlider';
@@ -14,6 +14,8 @@ type Props = {
   onTreeRefresh: () => void;
   onFileChanged: () => void;
   onFileSelect?: (path: string, code: string) => void;
+  /** ファイル一覧に戻ったとき（インスペクタ選択の再オープンを防ぐため親で要素選択を外す） */
+  onReturnToFileList?: () => void;
   /** レイアウト用（スプリットパネルで高さを親に合わせる） */
   className?: string;
 };
@@ -57,6 +59,7 @@ export function CodeLayer({
   onTreeRefresh,
   onFileChanged,
   onFileSelect,
+  onReturnToFileList,
   className = '',
 }: Props) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -190,6 +193,19 @@ export function CodeLayer({
     [loadFile],
   );
 
+  const backToFileList = useCallback(() => {
+    setSelectedFile(null);
+    setCode('');
+    setEditedCode('');
+    setIsEditing(false);
+    setHighlightLines([]);
+    setEditableValues([]);
+    setActiveSlider(null);
+    setShowTree(true);
+    onFileSelect?.('', '');
+    onReturnToFileList?.();
+  }, [onFileSelect, onReturnToFileList]);
+
   const language = selectedFile ? detectLanguage(selectedFile) : 'markup';
 
   const isValueEditable = (lineIdx: number, tokenContent: string): EditableValue | null => {
@@ -208,14 +224,29 @@ export function CodeLayer({
       <div className="shrink-0 border-b border-white/5">
         <div className="flex items-center justify-between gap-2 px-3 py-2">
           <div className="flex min-w-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowTree((v) => !v)}
-              className="flex h-9 min-h-[44px] shrink-0 items-center gap-1 rounded-lg bg-white/5 px-2.5 text-[10px] font-medium text-white/50 transition-colors hover:bg-white/10 md:h-8 md:min-h-0"
-            >
-              <FileCode2 size={12} />
-              {showTree ? <ChevronDown size={10} /> : <ChevronUp size={10} />}
-            </button>
+            {selectedFile && (
+              <>
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.9 }}
+                  onClick={backToFileList}
+                  title="ファイル一覧に戻る"
+                  className="flex h-9 min-h-[44px] shrink-0 items-center gap-1 rounded-lg bg-white/5 px-2.5 text-[10px] font-medium text-white/60 transition-colors hover:bg-white/10 md:h-8 md:min-h-0"
+                >
+                  <ListTree size={12} />
+                  <span>一覧</span>
+                </motion.button>
+                <button
+                  type="button"
+                  onClick={() => setShowTree((v) => !v)}
+                  title="一覧を下に表示"
+                  className="flex h-9 min-h-[44px] shrink-0 items-center gap-1 rounded-lg bg-white/5 px-2.5 text-[10px] font-medium text-white/50 transition-colors hover:bg-white/10 md:h-8 md:min-h-0"
+                >
+                  <FileCode2 size={12} />
+                  {showTree ? <ChevronDown size={10} /> : <ChevronUp size={10} />}
+                </button>
+              </>
+            )}
             {selectedFile && (
               <span className="truncate font-mono text-[11px] text-emerald-400">{selectedFile}</span>
             )}

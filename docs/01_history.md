@@ -655,3 +655,22 @@ docs/01_history.md, package-lock.json, src/components/WorkspaceView.tsx, src/com
 
 ■結果
 完了（`npm run check` / `npm run build` 通過）
+
+---
+
+【2026-04-25】
+
+■種別
+UI変更
+
+■内容
+コードパネルでファイルを開いたあと、ヘッダに **「一覧」**ボタン（`ListTree` アイコンとラベル、既存のガラス調トーン）を追加。押下で選択ファイルを解除しファイルツリーだけの画面に戻す。インスペクタで `sourceFile` が付いたままだと `CodeLayer` の effect が再び同ファイルを開くため、`onReturnToFileList` で `selectedElement` をクリア。`onFileSelect('', '')` で `WorkspaceView` 側の `currentFile` / `currentCode` も解除。ファイル未選択時は「一覧を下に表示」トグルを出さず、無効なボタンを置かない。
+
+■理由
+左パネルで中身表示中にファイル一覧へ戻る導線がなく、操作性に欠けたため。
+
+■対象
+src/components/CodeLayer.tsx, src/components/WorkspaceView.tsx, docs/01_history.md
+
+■結果
+完了（`npm run check` / `npm run build` 通過）

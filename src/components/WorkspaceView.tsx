@@ -49,6 +49,11 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
   }, []);
 
   const handleFileSelect = useCallback((path: string, code: string) => {
+    if (!path) {
+      setCurrentFile(null);
+      setCurrentCode('');
+      return;
+    }
     setCurrentFile(path);
     setCurrentCode(code);
   }, []);
@@ -180,6 +185,7 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
             onTreeRefresh={refreshTree}
             onFileChanged={handleFileChanged}
             onFileSelect={handleFileSelect}
+            onReturnToFileList={() => setSelectedElement(null)}
             className="min-w-0"
           />
         </aside>
