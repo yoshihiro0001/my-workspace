@@ -6,3 +6,4 @@ deploy.config.sh
 .env
 .env.*
 .vite/
+workspace-data/

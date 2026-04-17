@@ -5,7 +5,9 @@
   "type": "module",
   "description": "GitHub Template: React + Tailwind + glass UI, subpath production deploy",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -n api,vite -c blue,green \"node server/dev.js\" \"vite\"",
+    "dev:api": "node server/dev.js",
+    "dev:vite": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "start": "node server.js",
@@ -13,13 +15,22 @@
     "bootstrap:derive": "node scripts/derive-from-repo-name.mjs"
   },
   "dependencies": {
+    "adm-zip": "^0.5.17",
+    "cors": "^2.8.6",
     "express": "^4.21.0",
     "framer-motion": "^12.0.0",
+    "idb": "^8.0.3",
     "lucide-react": "^0.468.0",
+    "multer": "^2.1.1",
+    "prism-react-renderer": "^2.4.1",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "simple-git": "^3.36.0"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
+    "@types/adm-zip": "^0.5.8",
+    "@types/multer": "^2.1.0",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
