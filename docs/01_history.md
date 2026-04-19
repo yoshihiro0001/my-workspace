@@ -736,3 +736,61 @@ src/components/CodeLayer.tsx, src/components/WorkspaceView.tsx, src/components/U
 ■結果
 完了（`npm run check` / `npm run build` 通過）
 
+---
+
+【2026-04-29】
+
+■種別
+UI変更 / 機能追加 / リファクタ
+
+■内容
+インスペクタの "1要素 → 1ファイルの1点" 前提をやめ、**カテゴリ多角型インスペクタ**に進化。「角丸だけ」「`プロジェクト数のサマリーカード` 等の固定文言」「motionHint の決め打ち日本語ガイド」を全て削除し、Tailwind トークン汎用ロジックに置き換え。見た目はカテゴリチップ + ± ボタンのみのミニマル UI、内部では「自分自身のクラス」「親の glass 系共通スタイル」の複数オリジンを横断的に集約する。
+
+1. **`src/lib/inspector-style-utils.ts` 全面書き換え**:
+   - 旧 API（`GlassRule`/`RadiusPresetId`/`patchIndexCssGlassRadius`/`listRoundedTokens`/`patchTsxLineRoundedToken`/`nextRounderToken`/`prevRounderToken`/`detectGlassRule`）と固定プリセット表 `GLASS_RADIUS` を全廃。
+   - `CategoryId`（radius / padding / margin / gap / fontSize / fontWeight / shadow / borderWidth）と `CATEGORY_LABELS` / `CATEGORY_ORDER` を追加。
+   - Matcher テーブル方式で Tailwind トークンを「カテゴリ + 位置」に分類。標準スケール（spacing/radius/fontSize/fontWeight/shadow/borderWidth）に合致する場合のみ前後候補を生成。カスタム値 `[..]`、`auto`、レスポンシブ修飾子は意図的に対象外（破壊リスク回避）。
+   - `detectSelfTweaks(classes, file, line)` で要素自身、`detectGlassRules` + `detectSharedTweaks(css, rule)` で `src/index.css` 内 `.glass` / `.glass-card` / `.glass-panel` の `@apply` トークンから候補を抽出。
+   - `patchSourceLineToken` / `patchGlassRuleToken` で安全な単一トークン置換（`(?<![\w-]) ... (?![\w-])` 境界）。
+   - `shiftTweak` で適用後のローカル状態を即座に次/前候補へ更新。
+
+2. **`src/components/InspectorHintsPanel.tsx` 全面書き換え**:
+   - `friendlyTitle`（プロジェクト数のサマリーカード等の決め打ち）、`motionHintFromChunk`、`Sparkles` ヘッダ、長文ガイド、`「やや角／いつもの／もっと丸」`の角丸専用ボタン群を削除。
+   - 上段: 検出されたカテゴリのみをチップ表示（カテゴリ名 + 件数）。右端に `path : Lline` だけを mono 等幅で。
+   - 下段: 選択中カテゴリの編集行（`[−] <Tailwindトークン> [+] · 自分 L42` または `[−] ... [+] · .glass-panel`）。多角的視点を保ったまま画面上は最小限の文字。
+   - モバイルタップ領域 40px 以上を確保、デザイン憲法（ダーク＆ガラス、エメラルド系アクセント、`text-white/...` 階層）に整合。
+   - 候補が 0 件のときはパネル自体を非表示（余計な空欄を出さない）。
+
+3. **挙動**:
+   - 自分のクラス → `element.sourceFile` の該当行を読み込み 1 トークン置換 → 保存。
+   - glass 系共通スタイル → `src/index.css` の `.glass-{rule} { @apply ... }` 内のトークンだけを置換 → 同じクラスを使う全要素に波及。
+   - 適用後はプレビュー再ビルドが既存の `onApplied` 経路で走り、行の current/prev/next もローカル更新（再タップ不要で連続調整可）。
+
+■理由
+コード非読層が「要素」を概念として理解できない問題と、ウェブの見た目が「複数ファイルの合成」である現実に対し、旧インスペクタは "1ファイル1点" の限界があった。憲法の核心②（要素をタップ→コードが光る→スライダー／± で調整→非 AI の即時反映）および「やってはいけないこと」の「根拠なし変更禁止」に沿い、見える側はシンプル・内部は多角という構成へ進化。固定文言と角丸専用ロジックは「考えのコード」として全廃。
+
+■対象
+src/lib/inspector-style-utils.ts, src/components/InspectorHintsPanel.tsx, docs/01_history.md
+
+■結果
+完了（`npm run check` / `npm run build` 通過。`InspectorHintsPanel` の表示は「検出カテゴリのチップ + ± ボタン + ソースラベル」のみで余計な日本語ガイド文言を持たない）
+
+---
+
+【2026-04-30】
+
+■種別
+ドキュメント / その他
+
+■内容
+【2026-04-29】のカテゴリ多角型インスペクタ（`inspector-style-utils` / `InspectorHintsPanel` の全面更新）をリポジトリへ反映するコミット。履歴の憲法参照を実ファイル（`docs/00_constitution.md`）の核心②・禁止事項に合わせて修正。
+
+■理由
+履歴の正とコードの一致、誤った行番号参照の解消、再現用スナップショットのため。
+
+■対象
+src/lib/inspector-style-utils.ts, src/components/InspectorHintsPanel.tsx, docs/01_history.md
+
+■結果
+完了（`npm run check` / `npm run build` 通過）
+

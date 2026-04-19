@@ -1,16 +1,18 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Palette, Sparkles, Minus, Plus } from 'lucide-react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { Minus, Plus } from 'lucide-react';
 import type { InspectorElement } from '../types';
 import * as api from '../api/client';
 import {
-  detectGlassRule,
-  listRoundedTokens,
-  patchIndexCssGlassRadius,
-  patchTsxLineRoundedToken,
-  nextRounderToken,
-  prevRounderToken,
-  type GlassRule,
-  type RadiusPresetId,
+  CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  type CategoryId,
+  type Tweak,
+  detectGlassRules,
+  detectSelfTweaks,
+  detectSharedTweaks,
+  patchGlassRuleToken,
+  patchSourceLineToken,
+  shiftTweak,
 } from '../lib/inspector-style-utils';
 
 type Props = {
@@ -21,23 +23,7 @@ type Props = {
   onNotify?: (message: string) => void;
 };
 
-function friendlyTitle(el: InspectorElement): string {
-  const t = el.text;
-  if (/プロジェクト数/.test(t)) return 'プロジェクト数のサマリーカード';
-  if (el.classes.some((c) => c.includes('glass-panel'))) return 'ガラス調のパネル';
-  if (el.classes.some((c) => c.includes('glass-card'))) return 'ガラス調のカード';
-  if (el.tag === 'button') return 'ボタン';
-  if (el.tag === 'header') return 'ヘッダー領域';
-  if (el.tag === 'section') return 'セクション（まとまったブロック）';
-  if (el.tag === 'nav') return 'ナビゲーション';
-  return `${el.tag} 要素`;
-}
-
-function motionHintFromChunk(chunk: string): string | null {
-  if (!/motion\.|<motion\./.test(chunk)) return null;
-  if (!/initial=\{\{/.test(chunk) && !/animate=\{\{/.test(chunk)) return null;
-  return 'この付近に「表示されるときのなめらかな動き」（入場アニメ）の指定があります。数字や opacity / y をいじると動きが変わります。';
-}
+const INDEX_CSS_PATH = 'src/index.css';
 
 export function InspectorHintsPanel({
   projectId,
@@ -46,43 +32,96 @@ export function InspectorHintsPanel({
   onApplied,
   onNotify,
 }: Props) {
-  const [motionHint, setMotionHint] = useState<string | null>(null);
+  const [tweaks, setTweaks] = useState<Tweak[]>([]);
+  const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // 要素変更時、編集候補を再計算（自分の class + 親の glass-* @apply）
   useEffect(() => {
-    if (!element?.sourceFile || !element.sourceLine || !inspectMode) {
-      setMotionHint(null);
+    if (!inspectMode || !element) {
+      setTweaks([]);
       return;
     }
     let cancelled = false;
     void (async () => {
-      try {
-        const { content } = await api.readFile(projectId, element.sourceFile!);
-        const lines = content.split('\n');
-        const i = Math.max(0, element.sourceLine! - 1);
-        const chunk = lines.slice(Math.max(0, i - 4), Math.min(lines.length, i + 8)).join('\n');
-        if (!cancelled) setMotionHint(motionHintFromChunk(chunk));
-      } catch {
-        if (!cancelled) setMotionHint(null);
+      const list: Tweak[] = [];
+      if (element.sourceFile && element.sourceLine != null) {
+        list.push(...detectSelfTweaks(element.classes, element.sourceFile, element.sourceLine));
       }
+      const rules = detectGlassRules(element.classes);
+      if (rules.length > 0) {
+        try {
+          const { content } = await api.readFile(projectId, INDEX_CSS_PATH);
+          for (const r of rules) {
+            list.push(...detectSharedTweaks(content, r));
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      if (!cancelled) setTweaks(list);
     })();
     return () => {
       cancelled = true;
     };
-  }, [projectId, element?.sourceFile, element?.sourceLine, inspectMode]);
+  }, [inspectMode, element, projectId]);
 
-  const applyGlassPreset = useCallback(
-    async (rule: GlassRule, preset: RadiusPresetId) => {
+  const grouped = useMemo(() => {
+    const map = new Map<CategoryId, Tweak[]>();
+    for (const t of tweaks) {
+      const arr = map.get(t.category) ?? [];
+      arr.push(t);
+      map.set(t.category, arr);
+    }
+    return map;
+  }, [tweaks]);
+
+  const visibleCategories = useMemo(
+    () => CATEGORY_ORDER.filter((c) => grouped.has(c)),
+    [grouped],
+  );
+
+  useEffect(() => {
+    if (visibleCategories.length === 0) {
+      setActiveCategory(null);
+      return;
+    }
+    if (!activeCategory || !visibleCategories.includes(activeCategory)) {
+      setActiveCategory(visibleCategories[0]);
+    }
+  }, [visibleCategories, activeCategory]);
+
+  const apply = useCallback(
+    async (idx: number, to: string) => {
+      const tw = tweaks[idx];
+      if (!tw) return;
       setBusy(true);
       try {
-        const { content } = await api.readFile(projectId, 'src/index.css');
-        const nx = patchIndexCssGlassRadius(content, rule, preset);
-        if (!nx) {
-          onNotify?.('index.css 内の該当スタイルが見つかりませんでした');
-          return;
+        if (tw.source.kind === 'self') {
+          const { content } = await api.readFile(projectId, tw.source.file);
+          const lines = content.split('\n');
+          const li = tw.source.line - 1;
+          if (li < 0 || li >= lines.length) {
+            onNotify?.('該当行が見つかりません');
+            return;
+          }
+          const patched = patchSourceLineToken(lines[li], tw.current, to);
+          if (!patched) {
+            onNotify?.('置換できませんでした');
+            return;
+          }
+          lines[li] = patched;
+          await api.writeFile(projectId, tw.source.file, lines.join('\n'));
+        } else {
+          const { content } = await api.readFile(projectId, INDEX_CSS_PATH);
+          const r = patchGlassRuleToken(content, tw.source.rule, tw.current, to);
+          if (!r) {
+            onNotify?.('共通スタイルを更新できませんでした');
+            return;
+          }
+          await api.writeFile(projectId, INDEX_CSS_PATH, r.content);
         }
-        await api.writeFile(projectId, 'src/index.css', nx.content);
-        onNotify?.('角丸を更新しました');
+        setTweaks((prev) => prev.map((t, i) => (i === idx ? shiftTweak(t, to) : t)));
         onApplied();
       } catch {
         onNotify?.('保存に失敗しました');
@@ -90,154 +129,84 @@ export function InspectorHintsPanel({
         setBusy(false);
       }
     },
-    [projectId, onApplied, onNotify],
+    [tweaks, projectId, onApplied, onNotify],
   );
 
-  const applyTsxRoundedStep = useCallback(
-    async (dir: 'rounder' | 'sharper') => {
-      if (!element?.sourceFile || !element.sourceLine) return;
-      const tokens = listRoundedTokens(element.classes);
-      const tok = tokens[0];
-      if (!tok) return;
-      const next = dir === 'rounder' ? nextRounderToken(tok) : prevRounderToken(tok);
-      if (!next) {
-        onNotify?.('これ以上はこのボタンでは変更できません');
-        return;
-      }
-      setBusy(true);
-      try {
-        const { content } = await api.readFile(projectId, element.sourceFile);
-        const lines = content.split('\n');
-        const idx = element.sourceLine - 1;
-        if (idx < 0 || idx >= lines.length) return;
-        const patched = patchTsxLineRoundedToken(lines[idx], tok, next);
-        if (!patched) {
-          onNotify?.('この行では自動置換できませんでした');
-          return;
-        }
-        lines[idx] = patched;
-        await api.writeFile(projectId, element.sourceFile, lines.join('\n'));
-        onNotify?.('クラスを更新しました');
-        onApplied();
-      } catch {
-        onNotify?.('保存に失敗しました');
-      } finally {
-        setBusy(false);
-      }
-    },
-    [projectId, element, onApplied, onNotify],
-  );
+  if (!inspectMode || !element || visibleCategories.length === 0) return null;
 
-  if (!inspectMode || !element) return null;
-
-  const glassRule = detectGlassRule(element.classes);
-  const roundedOnEl = listRoundedTokens(element.classes);
-  const br = element.styles?.borderRadius ?? '';
-  const src =
+  const srcLabel =
     element.sourceFile && element.sourceLine != null
       ? `${element.sourceFile} : L${element.sourceLine}`
       : null;
 
+  const activeRows = activeCategory ? grouped.get(activeCategory) ?? [] : [];
+
   return (
     <div className="shrink-0 overflow-hidden border-b border-white/5 bg-white/[0.03]">
-        <div className="max-h-[min(40vh,280px)] overflow-y-auto px-3 py-2.5">
-          <div className="mb-2 flex items-center gap-2">
-            <Sparkles size={14} className="text-sky-400/90" />
-            <span className="text-[11px] font-semibold tracking-wide text-white/80">かんたんガイド</span>
-          </div>
+      <div className="flex items-center gap-1.5 overflow-x-auto px-3 pt-2.5">
+        {visibleCategories.map((cat) => {
+          const count = grouped.get(cat)?.length ?? 0;
+          const active = activeCategory === cat;
+          return (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setActiveCategory(cat)}
+              className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors ${
+                active
+                  ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/40'
+                  : 'bg-white/5 text-white/55 hover:bg-white/10'
+              }`}
+            >
+              <span>{CATEGORY_LABELS[cat]}</span>
+              <span className={active ? 'text-emerald-200/70' : 'text-white/35'}>{count}</span>
+            </button>
+          );
+        })}
+        {srcLabel && (
+          <span className="ml-auto shrink-0 truncate font-mono text-[10px] text-emerald-400/80">
+            {srcLabel}
+          </span>
+        )}
+      </div>
 
-          <p className="text-xs font-medium text-white/90">{friendlyTitle(element)}</p>
-          {src && <p className="mt-0.5 font-mono text-[10px] text-emerald-400/90">{src}</p>}
-
-          <p className="mt-2 text-[11px] leading-relaxed text-white/50">
-            コードが読めなくても、下のボタンでよく触る「角丸」などを試せます。反映後はプレビューが更新されます。
-          </p>
-
-          {motionHint && (
-            <div className="mt-3 rounded-xl border border-sky-500/20 bg-sky-500/5 px-2.5 py-2">
-              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-medium text-sky-300/90">
-                <Palette size={12} />
-                動きについて
+      <div className="max-h-[min(40vh,260px)] overflow-y-auto px-3 py-2.5">
+        <div className="flex flex-col gap-1.5">
+          {activeRows.map((tw) => {
+            const idx = tweaks.indexOf(tw);
+            const sourceLabel =
+              tw.source.kind === 'self' ? `自分 · L${tw.source.line}` : `.${tw.source.rule}`;
+            return (
+              <div key={`${idx}-${tw.current}`} className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={!tw.prev || busy}
+                  onClick={() => void apply(idx, tw.prev!)}
+                  className="flex h-9 min-h-[40px] w-9 min-w-[40px] shrink-0 items-center justify-center rounded-lg bg-white/5 text-white/55 transition-colors hover:bg-white/10 disabled:opacity-25 md:h-7 md:min-h-0 md:w-7 md:min-w-0"
+                  aria-label="一段階小さく"
+                >
+                  <Minus size={12} />
+                </button>
+                <span className="min-w-0 flex-1 truncate font-mono text-[11px] font-medium text-white/85">
+                  {tw.current}
+                </span>
+                <button
+                  type="button"
+                  disabled={!tw.next || busy}
+                  onClick={() => void apply(idx, tw.next!)}
+                  className="flex h-9 min-h-[40px] w-9 min-w-[40px] shrink-0 items-center justify-center rounded-lg bg-white/5 text-white/55 transition-colors hover:bg-white/10 disabled:opacity-25 md:h-7 md:min-h-0 md:w-7 md:min-w-0"
+                  aria-label="一段階大きく"
+                >
+                  <Plus size={12} />
+                </button>
+                <span className="ml-1 shrink-0 truncate font-mono text-[10px] text-white/35">
+                  {sourceLabel}
+                </span>
               </div>
-              <p className="text-[11px] leading-relaxed text-white/55">{motionHint}</p>
-            </div>
-          )}
-
-          {(glassRule || roundedOnEl.length > 0) && (
-            <div className="mt-3 rounded-xl border border-white/10 bg-black/30 px-2.5 py-2">
-              <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium text-white/60">
-                <Palette size={12} />
-                角丸
-              </div>
-              {br ? (
-                <p className="mb-2 text-[10px] text-white/35">現在の表示（ブラウザ計算値）: {br}</p>
-              ) : null}
-
-              {glassRule && (
-                <>
-                  <p className="mb-1.5 text-[11px] leading-relaxed text-white/45">
-                    <span className="font-medium text-white/60">「{glassRule}」</span>
-                    は <span className="font-mono text-white/50">src/index.css</span> の共通スタイルです。ここを変えると、同じクラスを使う場所すべてに反映されます。
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(
-                      [
-                        ['compact', 'やや角'],
-                        ['standard', 'いつもの'],
-                        ['round', 'もっと丸'],
-                      ] as const
-                    ).map(([id, label]) => (
-                      <button
-                        key={id}
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void applyGlassPreset(glassRule, id)}
-                        className="min-h-[36px] rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-medium text-white/70 transition-colors hover:bg-white/15 disabled:opacity-40 md:min-h-0"
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {roundedOnEl.length > 0 && element.sourceFile && element.sourceLine != null && (
-                <div className="mt-2 border-t border-white/5 pt-2">
-                  <p className="mb-1.5 text-[11px] text-white/45">
-                    この要素に <span className="font-mono text-emerald-400/80">{roundedOnEl[0]}</span>{' '}
-                    が付いています。1 段階だけ変えられます。
-                  </p>
-                  <div className="flex gap-1.5">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void applyTsxRoundedStep('sharper')}
-                      className="flex min-h-[40px] flex-1 items-center justify-center gap-1 rounded-xl bg-white/10 py-2 text-[10px] text-white/65 hover:bg-white/15 disabled:opacity-40 md:min-h-0"
-                    >
-                      <Minus size={12} /> 角を立てる
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void applyTsxRoundedStep('rounder')}
-                      className="flex min-h-[40px] flex-1 items-center justify-center gap-1 rounded-xl bg-white/10 py-2 text-[10px] text-white/65 hover:bg-white/15 disabled:opacity-40 md:min-h-0"
-                    >
-                      <Plus size={12} /> もっと丸く
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {!glassRule && roundedOnEl.length === 0 && (
-            <p className="mt-2 text-[11px] text-white/35">
-              この要素には <span className="font-mono">glass-panel</span> /{' '}
-              <span className="font-mono">glass-card</span> や <span className="font-mono">rounded-*</span>{' '}
-              が見つかりませんでした。角丸は親のスタイルや別ファイルの可能性があります。
-            </p>
-          )}
+            );
+          })}
         </div>
+      </div>
     </div>
   );
 }
