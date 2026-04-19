@@ -8,7 +8,13 @@ import type { Project, FileEntry, InspectorElement, GitLogEntry, AppSettings } f
 import { PreviewLayer, type PreviewHandle } from './PreviewLayer';
 import { CodeLayer } from './CodeLayer';
 import { AgentLayer } from './AgentLayer';
+import { InspectorHintsPanel } from './InspectorHintsPanel';
+import { UnsavedDiscardModal } from './UnsavedDiscardModal';
 import * as api from '../api/client';
+
+const COPY_UNSAVED_MESSAGE =
+  '\u5909\u66f4\u304c\u4fdd\u5b58\u3055\u308c\u3066\u3044\u307e\u305b\u3093\u3002\u7834\u68c4\u3057\u3066\u623b\u308a\u307e\u3059\u304b\uff1f';
+const COPY_DISCARD_CONFIRM = '\u7834\u68c4\u3057\u3066\u623b\u308b';
 
 type Props = {
   project: Project;
@@ -27,6 +33,8 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [currentCode, setCurrentCode] = useState('');
   const [inspectMode, setInspectMode] = useState(false);
+  const [codeUnsaved, setCodeUnsaved] = useState(false);
+  const [workspaceDiscardOpen, setWorkspaceDiscardOpen] = useState(false);
   const previewRef = useRef<PreviewHandle>(null);
 
   const refreshTree = useCallback(async () => {
@@ -110,14 +118,33 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
     setTimeout(() => setFlash(null), 2500);
   }
 
+  const requestLeaveWorkspace = useCallback(() => {
+    if (codeUnsaved) setWorkspaceDiscardOpen(true);
+    else onBack();
+  }, [codeUnsaved, onBack]);
+
   return (
     <div className="fixed inset-0 flex flex-col bg-black">
+      <AnimatePresence>
+        {workspaceDiscardOpen && (
+          <UnsavedDiscardModal
+            key="workspace-unsaved"
+            message={COPY_UNSAVED_MESSAGE}
+            confirmLabel={COPY_DISCARD_CONFIRM}
+            onDiscard={() => {
+              setWorkspaceDiscardOpen(false);
+              onBack();
+            }}
+            onCancel={() => setWorkspaceDiscardOpen(false)}
+          />
+        )}
+      </AnimatePresence>
       <div className="relative z-40 flex shrink-0 items-center justify-between gap-2 border-b border-white/5 bg-black/90 px-3 py-2 backdrop-blur-sm">
         <div className="flex min-w-0 items-center gap-2">
           <motion.button
             type="button"
             whileTap={{ scale: 0.9 }}
-            onClick={onBack}
+            onClick={requestLeaveWorkspace}
             className="flex h-9 min-h-[44px] w-9 min-w-[44px] shrink-0 items-center justify-center rounded-lg bg-white/5 text-white/60 hover:bg-white/10 md:h-8 md:min-h-0 md:w-8 md:min-w-0"
           >
             <ArrowLeft size={16} />
@@ -175,6 +202,17 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
         )}
       </AnimatePresence>
 
+      <InspectorHintsPanel
+        projectId={project.id}
+        element={selectedElement}
+        inspectMode={inspectMode}
+        onApplied={() => {
+          previewRef.current?.refresh();
+          refreshTree();
+        }}
+        onNotify={showFlashMessage}
+      />
+
       {/* 常時左右分割（物理的に重ならない） */}
       <div className="flex min-h-0 flex-1 flex-row">
         <aside className="flex min-h-0 min-w-0 flex-1 basis-1/2 flex-col border-r border-white/5">
@@ -186,6 +224,7 @@ export function WorkspaceView({ project, settings, onBack }: Props) {
             onFileChanged={handleFileChanged}
             onFileSelect={handleFileSelect}
             onReturnToFileList={() => setSelectedElement(null)}
+            onDirtyChange={setCodeUnsaved}
             className="min-w-0"
           />
         </aside>

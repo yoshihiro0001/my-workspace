@@ -674,3 +674,65 @@ src/components/CodeLayer.tsx, src/components/WorkspaceView.tsx, docs/01_history.
 
 ■結果
 完了（`npm run check` / `npm run build` 通過）
+
+---
+
+【2026-04-26】
+
+■種別
+UI変更 / 機能追加
+
+■内容
+1. **編集モードの視認性**: インスペクタ由来の行ハイライトと `code-line-inspector-glow` を編集時も維持。編集 UI は Prism のシンタックスハイライトと行番号を背面に表示し、手前に透明テキストの textarea を重ねる（`whitespace-pre` で折り返しを抑止）。
+2. **未保存ガード**: `editedCode !== code` のとき、ファイル一覧へ戻る・ツリーで別ファイルを開く・ワークスペースへ戻る（矢印）で `UnsavedDiscardModal` を表示（文言はコード内 Unicode 定数）。`beforeunload` でブラウザの離脱警告。`onDirtyChange` で親が状態を把握。
+3. **キャンセル**: 保存の横に「キャンセル」（`RotateCcw`）を追加し、未保存の編集を破棄して表示モードへ戻す。
+4. **編集開始時のスクロール**: 編集に入った直後（1 回だけ）、インスペクタ／ハイライト行が textarea 内で中央付近に来るようスクロール。
+5. **その他**: 新規 `UnsavedDiscardModal.tsx`（ガラスパネル・アンバー系トーン）。未保存中はインスペクタの自動ファイル読込を抑制。値スライダーは編集中は非表示。
+
+■理由
+編集時のシンタックス欠如・未保存破棄のリスク・インスペクタ行の見失いを解消するため。
+
+■対象
+src/components/CodeLayer.tsx, src/components/WorkspaceView.tsx, src/components/UnsavedDiscardModal.tsx, docs/01_history.md
+
+■結果
+完了（`npm run check` / `npm run build` 通過）
+
+---
+
+【2026-04-27】
+
+■種別
+UI変更 / 機能追加
+
+■内容
+インスペクタ ON かつ要素選択時に、トップバー直下に **「かんたんガイド」**（`InspectorHintsPanel`）を表示。コードが読めない利用者向けに、(1) ひとことの意味ラベル（例: プロジェクト数カード・ガラスパネル）とソース位置、(2) Framer Motion の入場アニメの有無をソース抜粋から検出し短文で説明、(3) **`glass-panel` / `glass-card`** について `src/index.css` の共通 `@apply` を **やや角 / いつもの / もっと丸** の3ボタンで更新、(4) 要素に **`rounded-*` が直接付いている場合** は該当行のクラスを1段階だけ **角を立てる / もっと丸く** で置換。`docs/DESIGN_HANDOVER.md` のガラス・角丸の考え方に沿った文言。ロジックは `src/lib/inspector-style-utils.ts` に分離。
+
+■理由
+プレビューで選んだブロックの役割・角丸の所在・動きの有無を直感的に把握し、安全な範囲で即試せるようにするため。
+
+■対象
+src/components/InspectorHintsPanel.tsx, src/lib/inspector-style-utils.ts, src/components/WorkspaceView.tsx, docs/01_history.md
+
+■結果
+完了（`npm run check` / `npm run build` 通過）
+
+---
+
+【2026-04-28】
+
+■種別
+ドキュメント / その他
+
+■内容
+【2026-04-26】【2026-04-27】の実装をリポジトリへ反映するコミット（新規 `UnsavedDiscardModal.tsx` / `InspectorHintsPanel.tsx` / `inspector-style-utils.ts` を含む）。
+
+■理由
+履歴の正と作業ツリーの一致、デプロイ・再現用のスナップショットのため。
+
+■対象
+src/components/CodeLayer.tsx, src/components/WorkspaceView.tsx, src/components/UnsavedDiscardModal.tsx, src/components/InspectorHintsPanel.tsx, src/lib/inspector-style-utils.ts, docs/01_history.md
+
+■結果
+完了（`npm run check` / `npm run build` 通過）
+
