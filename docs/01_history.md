@@ -794,3 +794,22 @@ src/lib/inspector-style-utils.ts, src/components/InspectorHintsPanel.tsx, docs/0
 ■結果
 完了（`npm run check` / `npm run build` 通過）
 
+---
+
+【2026-04-20】
+
+■種別
+その他 / インフラ（ローカル）
+
+■内容
+他エージェント中断後のリポジトリを確認。`HEAD` は `origin/main` と同一（`c337b73`、カテゴリ多角型インスペクタ等は履歴【2026-04-29】【2026-04-30】どおり実装済み）。作業ツリーはクリーンで追加コミット対象のコード差分なし。`npm run check` / `npm run build` 通過。ローカル `npm run dev` は `node server/dev.js` が SIGTERM で先行終了し Vite のみ残存していたため `/api/*` プロキシが ECONNREFUSED になっていた → `npm run dev` プロセスを止めて再起動し API（既定 `localhost:3001`）と Vite（`localhost:5173`）を復旧。`git push origin main` は Everything up-to-date。
+
+■理由
+ユーザー依頼（状態確認・ローカルサーバー再起動・Git 反映・履歴追記）。憲法の「記録なき完了禁止」に従う。
+
+■対象
+ローカル開発環境、`docs/01_history.md`
+
+■結果
+完了（リモート本番 PM2 は未操作）
+
